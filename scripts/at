@@ -1,0 +1,276 @@
+#!/bin/bash
+
+## Variables ##
+selection= #main menu selection
+section=244 #predefined section
+prof_ans= #same or different prof
+prof_first='nick' #predefined professor firstname
+prof_last='romanidis' #predefined professor lastname
+week_num= #week number of workshops or assignment
+portion= #lab or home portion of assignment
+pattern= #previous entered pattern
+assignment_ans= #assignment type asnwer
+assignment_type= #milestone or workshop
+
+## Functions ##
+reset(){
+  if [ "$pattern" != "" ]; then
+    pattern=
+  fi
+}
+
+diff_prof(){
+  #reset pattern and ask for old or new input
+  reset
+  while [ "$prof_first" != "" -a "$pattern" = "" ]; do
+    echo -ne "\nDo you want to use the previous fisrtname pattern: " ; read pattern
+
+    case $pattern in
+      y ) echo -e "\nSaving..."; sleep 0.5 ;;
+      Y ) echo -e "\nSaving..."; sleep 0.5 ;;
+      n ) prof_first= ;; #reset this to enter next loop
+      N ) prof_first= ;;
+      * ) pattern= ; echo -ne "\nPlease enter (Y|y) or (N|n) only!"
+    esac
+  done
+
+  until [ "$prof_first" != "" ]; do
+    echo -ne "\nEnter your professor firstname: " ; read prof_first
+  done
+
+  #reset pattern and ask for old or new input
+  reset
+  while [ "$prof_last" != "" -a "$pattern" = "" ]; do
+    echo -ne "\nDo you want to use the previous lastname pattern: " ; read pattern
+
+    case $pattern in
+      y ) echo -e "\nSaving..."; sleep 0.5 ;;
+      Y ) echo -e "\nSaving..."; sleep 0.5 ;;
+      n ) prof_last= ;; #reset this to enter next loop
+      N ) prof_last= ;;
+      * ) pattern= ; echo -ne "\nPlease enter (Y|y) or (N|n) only!"
+    esac
+  done
+
+  until [ "$prof_last" != "" ]; do
+    echo -ne "\nEnter your professor lastname: " ; read prof_last
+  done
+}
+
+submit(){
+  reset    
+
+  #Ask for old or new pattern of week
+  while [ "$week_num" != "" -a "$pattern" = "" ]; do
+    echo -ne "\nDo you want to use previous entered number pattern?[(Y)es or (N)o]:> " ; read pattern 
+    case $pattern in
+      y ) echo -e "\nSaving..."; sleep 0.5 ;;
+      Y ) echo -e "\nSaving..."; sleep 0.5 ;;
+      n ) week_num= ;; #empties this to enter next loop
+      N ) week_num= ;;
+      * ) pattern= ; echo -ne "\nPlease enter (Y|y) or (N|n) only!"
+    esac
+  done
+
+  #Loops until week_num is not empty
+  while [ "$week_num" = "" ]; do
+
+    #accept only 1 digit
+    echo -ne "\nEnter the number of assignment: ${assignent_type}" ; read week_num
+
+    #check is it a digit
+    echo $week_num | grep '^[0-9]*[0-9]$' >> /dev/null
+    if [ $? -ne 0 ]; then
+      week_num=""
+      echo -e "\nInput was not a digit! TRY AGAIN!!"
+    elif [ \( $week_num -gt 10 -o $week_num -eq 0 \) -a "$assignment_type" = "w" ]; then
+      week_num=""
+      echo -e "\nInput was greater than [10] or equal to [0]! TRY AGAIN!!"
+    elif [ \( $week_num -gt 6 -o $week_num -eq 0 \) -a "$assignment_type" = "ms" ]; then
+      week_num=""
+      echo -e "\nInput was greater than [6] or equal to [0]! TRY AGAIN!!"
+    fi
+  done
+
+  reset
+  #Ask for old or new pattern of portion
+  while [ "$portion" != "" -a "$pattern" = "" -a "$assignment_type" = "w" ]; do
+    echo -ne "\nDo you want to use previous entered portion pattern?[(Y)es or (N)o]:> " ; read pattern 
+
+    case $pattern in
+      y ) echo -e "\nSaving..."; sleep 0.5 ;;
+      Y ) echo -e "\nSaving..."; sleep 0.5 ;;
+      n ) portion= ;; #empties this to enter next loop
+      N ) portion= ;;
+      * ) pattern= ; echo -ne "\nPlease enter (Y|y) or (N|n) only!"
+    esac
+  done
+
+  #Loops until portion is not empty
+  while [ "$portion" = "" -a "$assignment_type" = "w" ]; do
+    
+    # read into portion variable
+    echo -ne "\nEnter the portion: " ; read portion
+
+    #check is it home or lab
+    echo $portion | egrep '(home|lab)' >> /dev/null
+    if [ $? -ne 0 ]; then
+      portion=""
+      echo -e "\nInput was not [home] or [lab]! TRY AGAIN!!"
+    fi
+  done
+
+  #Perform submission if data is filled
+  if [ "$week_num" != "" -a "$portion" != "" -a "$assignment_type" = "w" ]; then
+    clean_up
+    compilation
+    if [ $? -eq 0 ]; then
+      eval ~${prof_first}.${prof_last}/submit ${section}_${assignment_type}${week_num}_${portion}
+    fi
+  elif [ "$week_num" != "" -a "$assignment_type" = "ms" ]; then
+    clean_up
+    compilation
+    if [ $? -eq 0 ]; then
+      eval ~${prof_first}.${prof_last}/submit ${section}_${assignment_type}${week_num}
+    fi
+  fi
+}
+
+submit_menu(){
+prof_ans=
+until [ "$prof_ans" = "y" -o "$prof_ans" = "Y" -o "$prof_ans" = "n" -o "$prof_ans" = "N" -o "$prof_ans" = "p" -o "$prof_ans" = "P" ]; do
+  echo -ne "\nIs your professor $prof_first $prof_last[(Y)es or (N)o or (P)eter]:> " ; read prof_ans
+  case $prof_ans in
+    # submit as same class
+    y ) prof_first='nick' ; prof_last='romanidis' ; submit ;;
+    Y ) prof_first='nick' ; prof_last='romanidis' ; submit ;;
+
+    #submit as others
+    n ) prof_first='' ; prof_last='' ; diff_prof ; submit ;;
+    N ) prof_first='' ; prof_last='' ; diff_prof ;submit ;;
+
+    #submit as peter class
+    p ) prof_first='peter' ; prof_last='liu' ; submit ;;
+    P ) prof_first='peter' ; prof_last='liu' ; submit ;;
+
+    #display message then do again
+    * )  echo -e "\nPlease enter [(Y/y) or (N/n) or (P/p)]!!" ; sleep 0.5 ;;
+  esac
+done
+}
+
+compilation(){
+  echo -ne "\nCompiling into ws...\n" ; sleep 0.5
+  g++ *.cpp -Wall -std=c++0x -o w$week_num 
+}
+
+change_dir(){
+  target= #user input
+  line_num= #line number of target
+  path= #fullpath of target to cd
+  bool=false #boolean for the loop of change-dir function
+
+  #loops until target is not empty and check is it -d type
+  until [ "${target}" != "" -a "${bool}" != "false" ]; do
+    echo -ne "\nEnter the name of your target directory: " ; read target
+
+    #find target
+    find ~ -iname "$target" 2>&1 | grep -v 'Permission denied' >&2 > ~/temp$$
+
+    if [ $? -ne 0 ]; then
+      echo -e "\n$target can't be found!! Try again!!!"
+      target=
+    else
+      echo -ne "\n"
+      #grep and display line of targets for user
+      grep -n "${target}" ~/temp$$
+
+      #loops until line_num contains the line of target
+      until [ "${line_num}" != "" ]; do
+        echo -ne "\nEnter the number besides your target: " ; read line_num
+
+        #echo and grep for a digit. if failed -> try again
+        echo ${line_num} | grep '^[0-9]*[0-9]$' >/dev/null
+        if [ $? -ne 0 ]; then
+          line_num=""
+          echo -e "\nInput was not a digit! Try again!!!"
+        elif [ $line_num -gt $(wc -l ~/temp$$ | awk '{print $1}') ]; then
+          line_num=""
+          echo -e "\nInput was greater than the maximum number! Try again!!" ; sleep 0.5
+        elif [ $line_num -lt $(grep -n /home ~/temp$$ | awk -F: '{print $1}' | sed -n 1p ) ]; then
+          line_num=
+          echo -e "\nInput was smaller than the minimum number! Try again!!" ; sleep 0.5
+        fi
+      done
+ 
+      #use command substitution with awk to pass pathname and remove temp$$
+      path=$(awk "NR == $line_num" ~/temp$$) ; rm ~/temp$$
+  
+      #checking file type and ask user to wait
+      echo -e "\nChecking filetype ..." ; sleep 0.5
+      if [ ! -d ${path} ]; then
+        echo -e "\n${path} is not a directory! Try again!!!"
+        target=
+	line_num=
+      else
+        bool=true
+      fi
+  
+      if [ "$bool" = "true" ]; then
+        cd ${path}
+      fi
+    fi
+  done
+}
+
+clean_up(){
+  echo -e "\nRemoving redundant files..." ; sleep 0.5
+  if [ "$assignment_type" = "w" ]; then
+    rm ${section}_w?_prof_??_???*.cpp ${section}_w?_???*_output.txt diff.txt error.txt output.txt 2> /dev/null
+  elif [ "$assignment_type" = "ms" ]; then
+    rm ${section}_ms?_output.txt ${section}_ms?_tester_prof.cpp diff.txt error.txt output.txt ${section}_ms?_*.h ${section}_ms?_*.cpp 2> /dev/null
+  else
+    echo -en "\nOnly useable after submission!"
+  fi
+}
+
+select_type(){
+assignment_ans=
+until [ "$assignment_ans" != "" ]; do
+  echo -ne "\n\nWhich type of assigment do you want to submit? Select one of the options below"
+  echo -ne "
+----------------------------------------
+1. Workshop
+
+2. Milestone
+----------------------------------------
+Your selection:> " ; read assignment_ans
+  
+  case $assignment_ans in
+    1 ) assignment_type=w ;;
+    2 ) assignment_type=ms ;;
+    * ) assignment_ans='' ; echo "Please select one of the options above!" ; sleep 0.5
+  esac
+done
+}
+
+## Main ##
+until [ "$selection" = "0" ]; do
+  echo -ne "
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ASSIGNMENT MENU
+----------------------------------------
+1. Submit
+
+2. Remove redundant files
+
+0. Exit
+----------------------------------------
+Your selection:> " ; read selection
+  case $selection in
+    0 ) echo -ne "\n************ WRITTEN BY REI ************\n\n" ; exit ;;
+    1 ) select_type ; change_dir ; submit_menu ;;
+    2 ) clean_up ;;  
+    * ) echo "Please select one of the option above!" ; sleep 0.5
+  esac
+done

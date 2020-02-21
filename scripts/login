@@ -1,0 +1,6 @@
+#!/bin/bash
+
+user=$1
+server=$2
+
+ssh ${server} -l ${user}

@@ -1,0 +1,219 @@
+#!/bin/bash
+
+## Aliases Manipulate Script ##
+
+## Variables ##
+selection= #selection of main menu[add, delete, update]
+name= #name of alias
+content= #command of alias
+line_num= #line number of alias
+update_name_sel= #update name of alias selection
+name_full= #full name of alias for grep... command
+update_content_sel= #update content of alias selection
+content_full= #full content of alias for grep... command
+
+## Functions ##
+reset(){
+  name=
+  content=
+  line_num=
+  update_name_sel=
+  update_content_sel=
+  name_full=
+  content_full=
+}
+
+view(){
+  echo -e "\nListing the existing aliases..." ; sleep 0.5
+
+  # Grep for alias
+  cat ~/.bashrc | grep -n --color "^alias .*"
+  smallest=$(grep -n ^alias ~/.bashrc | awk '{print $1}' | sed -n 1p | cut -d':' -f1)
+
+
+  # If not 0 -> no available alias
+  if [ $? -ne 0 ]; then
+    echo "There is no available alias!"
+  fi
+
+  source ~/.bashrc
+}
+
+add(){
+  view
+
+  # Loops until name is not empty
+  until [ "$name" != "" ]; do
+    echo -ne "\nEnter the name of the alias you wish to add: " ; read name
+  done
+
+  # Loops until content is not empty
+  until [ "$content" != "" ]; do
+    echo -ne "\nEnter the command of the alias you wish to add: " ; read content
+  done
+
+  # Append value to the end of .bashrc
+  echo "alias $name='$content'" >> ~/.bashrc
+
+  view
+}
+
+delete(){
+  view
+
+  # Loops until line number is not empty
+  until [ "$line_num" != "" ]; do
+    echo -ne "\nEnter the line number of the alias you wish to remove: " ; read line_num
+
+    #echo value to check is it a digit? not->empties var and do again
+    echo $line_num | grep '^[0-9]*[0-9]$' >/dev/null
+    if [ $? -ne 0 ]; then
+      echo -e "\nInput was not a number! Try again!!" ; sleep 0.5
+      line_num=""
+    elif [ $line_num -gt $(wc -l ~/.bashrc | awk '{print $1}') ]; then
+      echo -e "\nInput was greater than the maximum number! Try again!!" ; sleep 0.5
+      line_num=""
+    elif [ $line_num -lt $(grep -n ^alias ~/.bashrc | awk -F: '{print $1}' | sed -n 1p) ] ;then
+      echo -e "\nInput was smaller than the minimum number! Try again!!" ; sleep 0.5
+      line_num=""
+    fi
+  done
+
+  # cat .bashrc for aliases and delete target
+  # then cat to temp$$ and from temp$$ to .bashrc
+  # to avoid empties .bashrc
+  cat ~/.bashrc | sed "$line_num d" > ~/temp$$
+  cat ~/temp$$ > ~/.bashrc ; rm ~/temp$$ 2> /dev/null
+
+  view
+}
+
+update_name(){
+  if [ "$update_name_sel" = "y" -o "$update_name_sel" = "Y" ]; then
+
+    # Empties $name and loops until new name is entered
+    name=""
+    while [ "$name" = "" ]; do
+      echo -ne "\nEnter the new name for the alias: " ; read name
+    done
+
+    # Put into name_full variable for consistency - to be same as else situation
+    name_full="alias $name="
+  else
+
+    # Take input from temp$$ and paste it to $name; -o is match only
+    name_full=$(grep -o "alias .*=" ~/temp$$) 
+    echo -e "\nSaving..." ; sleep 0.5
+  fi
+}
+
+update_content(){
+  if [ "$update_content_sel" = "y" -o "$update_content_sel" = "Y" ]; then
+	  
+    # Empties $content and loops until new content is entered
+    content=""
+    while [ "$content" = "" ]; do
+      echo -ne "\nEnter the new content for the alias: " ; read content
+    done
+
+    # Put into name_full variable for consistency - to be same as else situation
+    content_full="'$content'"
+  else
+
+    # Take input from temp$$ and paste it to $content; -o is match only
+    content_full=$(grep -o "'.*'$" ~/temp$$) 
+    echo -e "\nSaving..." ; sleep 0.5
+  fi
+}
+
+update(){
+  view
+
+  #Loops until line number is not empty
+  until [ "$line_num" != "" ]; do
+    echo -ne "\nEnter the line number of the alias you wish to update: " ; read line_num
+
+    #echo value to check is it a digit? not->empties var and do again
+    echo $line_num | grep '^[0-9]*[0-9]$' >/dev/null
+    if [ $? -ne 0 ]; then
+      echo -e "\nInput was not a number! Try again!!" ; sleep 0.5
+      line_num=""
+    elif [ $line_num -gt $(wc ~/.bashrc | awk '{print $1}') ]; then
+      echo -e "\nInput was greater than the maximum number! Try again!!" ; sleep 0.5
+      line_num=""
+    elif [ $line_num -lt $(grep -n ^alias ~/.bashrc | awk -F: '{print $1}' | sed -n 1p) ] ;then
+      echo -e "\nInput was smaller than the minimum number! Try again!!" ; sleep 0.5
+      line_num=""
+    fi
+  done 
+
+  # cat .bashrc for target alias
+  # and print it into temp$$
+  cat ~/.bashrc | sed -n "$line_num p" > ~/temp$$
+
+  # Whether to change name or not.
+  until [ "$update_name_sel" != "" ]; do
+    echo -ne "\nDo you want to update the name?[(Y)es or (N)o]:> " ; read update_name_sel
+
+    # cases
+    case $update_name_sel in
+      y ) update_name ;;
+      Y ) update_name ;;
+      n ) update_name ;;
+      N ) update_name ;;
+      * ) echo "Only (Y|y) or (N|n)! Try again" ; update_name_sel="" ; sleep 0.5 ;;
+    esac
+  done
+
+  # Whether to change content or not
+  until [ "$update_content_sel" != "" ]; do
+    echo -ne "\nDo you want to update the content?[(Y)es or (N)o]:> " ; read update_content_sel
+
+    # cases
+    case $update_content_sel in
+      y ) update_content ;;
+      Y ) update_content ;;
+      n ) update_content ;;
+      N ) update_content ;;
+      * ) echo "Only (Y|y) or (N|n)! Try again" ; update_content_sel="" ; sleep 0.5 ;;
+    esac
+  done
+
+  # Delete target to update and redirect it to a temp file.
+  cat ~/.bashrc | sed "$line_num d" > ~/temp$(($$ + 1))
+
+  # Cat temp file back to .bashrc to complete deletion.
+  cat ~/temp$(($$ + 1)) > ~/.bashrc
+
+  # Pass value from variables to .bashrc. 
+  # $name_full and # content_full is the same regardless 
+  # of yes or no selection
+  echo "$name_full$content_full" >> ~/.bashrc
+
+  # Remove temp files and list aliases
+  rm temp$$ temp$(($$ + 1)) 2> /dev/null ; view
+}
+
+## Main ##
+while [ "$selection" != "0" ]; do
+  echo -ne "
+-----------------------------------------
+ALIAS MENU
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Add Alias
+
+2. Delete Alias
+
+3. Update Alias
+
+0. Exit
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Your selection:> " ; read selection
+  case $selection in
+    1 ) add ;  reset ;;
+    2 ) delete ; reset ;;
+    3 ) update ; reset ;;
+    0 ) echo -ne "\n************ WRITTEN BY REI ************\n\n" ; exit ;;
+    * ) echo "Please enter one of the option above!" ; sleep 0.5
+  esac
+done
